@@ -1,0 +1,650 @@
+//**NOTE - when uploading GeoTIFFs, select Pyramiding Policy MODE under advanced options or the layer will draw incorrectly (i.e. reef crest is 1, back reef is 3, so pixels inbetween the two will show as fore reef/2 when zoomed out if pyramiding policy is MEAN)
+
+// Set up the overall structure of the app, with a control panel to the left
+// of a full-screen map. 
+ui.root.clear();   
+var panel = ui.Panel({style: {width: '350px'}}); 
+var map = ui.Map(); 
+ui.root.add(panel).add(map); 
+map.drawingTools().setShown(true);
+map.drawingTools().setDrawModes(['polygon','line']);
+map.setCenter(-69.217, 19.017, 5);
+map.style().set('cursor', 'crosshair');
+map.setOptions("SATELLITE"); 
+
+var benhab = ee.ImageCollection([bh1,bh2,bh3,bh4,bh5,bh6,bh7,bh8,bh9,bh10,bh11,bh12,bh13,bh14,bh15,bh16,bh17,bh18,cayman,tci,drbenhab,cuba1,cuba2,cuba34,cuba5,cuba6,cuba7,cuba8e,cuba8w,cuba9e,cuba9w,cuba10,cuba11,cuba12,htibenhab,jambenhab,jam_off_benhab,prvibenhab,ecbenhabn,ecbenhabs]).mosaic();
+var palette_bh = ['FF0000','FFBEBE','FFD37F','FFAA00','FF73DF','ABCD66','66CDAB','A87000','D7C29E','FFFFBE','AFF2FF','38A800','267300'];
+// 1 'Reef Crest' (red FF0000), 2 'Reef Fore' (peach FFBEBE),
+// 3 'Reef Back' (pale orange FFD37F), 4 'Coral/Algae' (orange FFAA00),
+// 5 'Spur and Groove' (bright pink FF73DF), 6 'Hardbottom Sparse Algae' (pale green ABCD66),
+// 7 'Hardbottom Dense Algae' (teal 66CDAB), 8 'Muddy Bottom' (brown A87000),
+// 9 'Dredged' (tan D7C29E), 10 'Sand' (light yellow FFFFBE),
+// 11 'Boulders and Rocks' (pale blue AFF2FF), 12 'Seagrass Sparse' (green 38A800),
+// 13 'Seagrass Dense' (dark green 267300)
+
+var bhVis = benhab.visualize({bands: 'b1', min: 1, max: 13, palette: palette_bh});
+var coral_palette = ['FF0000','FFBEBE','FFD37F','FFAA00','FF73DF']
+var coralVis = benhab.visualize({bands: 'b1', min: 1, max: 5, palette: coral_palette});
+var seagrass_palette = ['38A800','267300']
+var seagrassVis = benhab.visualize({bands: 'b1', min: 12, max: 13, palette: seagrass_palette});
+
+//Select Countries///////////////////////////////////////////////////////////////////////////////
+var carib_name = 'The Insular Caribbean'
+var carib = EEZ;
+var bhs_name = 'The Bahamas';
+var bhs = EEZ.filter(ee.Filter.eq('Dissolve', 'BAHAMAS'));
+var bhs_obj = countries.filter(ee.Filter.eq('country_co', 'BF'));
+var tci_name = 'Turks and Caicos';
+var tci = EEZ.filter(ee.Filter.eq('Dissolve', 'TURKS AND CAICOS'));
+var tci_obj = countries.filter(ee.Filter.eq('country_co', 'TK'));
+var cuba_name = 'Cuba';
+var cuba = EEZ.filter(ee.Filter.eq('Dissolve', 'CUBA'));
+var cuba_obj = countries.filter(ee.Filter.eq('country_na', cuba_name));
+var cay_name = 'Cayman Islands';
+var cayman = EEZ.filter(ee.Filter.eq('Dissolve', 'CAYMAN ISLANDS'));
+var cay_obj = countries.filter(ee.Filter.eq('country_co', 'CJ'));
+var jam_name = 'Jamaica';
+var jam = EEZ.filter(ee.Filter.eq('Dissolve', 'JAMAICA'));
+var jam_obj = countries.filter(ee.Filter.eq('country_na', jam_name));
+var hti_name = 'Haiti';
+var hti = EEZ.filter(ee.Filter.eq('Dissolve', 'HAITI'));
+var hti_obj = countries.filter(ee.Filter.eq('country_na', hti_name));
+var dr_name = 'Dominican Republic';
+var dr = EEZ.filter(ee.Filter.eq('Dissolve', 'DOMINICAN REPUBLIC'));
+var dr_obj = countries.filter(ee.Filter.eq('country_na', dr_name));
+var pr_name = 'Puerto Rico';
+var pr = EEZ.filter(ee.Filter.eq('Dissolve', 'PUERTO RICO'));
+var pr_obj = countries.filter(ee.Filter.eq('country_na', pr_name));
+var usvi_name = 'U.S. Virgin Islands';
+var usvi = EEZ.filter(ee.Filter.eq('Dissolve', 'US VIRGIN ISLANDS'));
+var usvi_obj = countries.filter(ee.Filter.eq('country_co', 'VQ'));
+var bvi_name = 'British Virgin Islands';
+var bvi = EEZ.filter(ee.Filter.eq('Dissolve', 'BRITISH VIRGIN ISLANDS'));
+var bvi_obj = countries.filter(ee.Filter.eq('country_co', 'VI'));
+var ang_name = 'Anguilla';
+var ang = EEZ.filter(ee.Filter.eq('Dissolve', 'ANGUILLA'));
+var ang_obj = countries.filter(ee.Filter.eq('country_na', ang_name));
+var skn_name = 'Saint Kitts and Nevis';
+var skn = EEZ.filter(ee.Filter.eq('Dissolve', 'SAINT KITTS AND NEVIS'));
+var skn_obj = countries.filter(ee.Filter.eq('country_co', 'SC'));
+var atgbrb_name = 'Antigua and Barbuda';
+var atgbrb = EEZ.filter(ee.Filter.eq('Dissolve', 'ANTIGUA AND BARBUDA'));
+var atgbrb_obj = countries.filter(ee.Filter.eq('country_co', 'AC'));
+var montse_name = 'Montserrat';
+var montse = EEZ.filter(ee.Filter.eq('Dissolve', 'MONTSERRAT'));
+var montse_obj = countries.filter(ee.Filter.eq('country_na', montse_name));
+var guad_name = 'Guadeloupe';
+var guad = EEZ.filter(ee.Filter.eq('Dissolve', 'GUADELOUPE'));
+var guad_obj = countries.filter(ee.Filter.eq('country_na', guad_name));
+var dom_name = 'Dominica'; 
+var dom = EEZ.filter(ee.Filter.eq('Dissolve', 'DOMINICA'));
+var dom_obj = countries.filter(ee.Filter.eq('country_na', dom_name));
+var mart_name = 'Martinique';
+var mart = EEZ.filter(ee.Filter.eq('Dissolve', 'MARTINIQUE'));
+var mart_obj = countries.filter(ee.Filter.eq('country_na', mart_name));
+var stl_name = 'Saint Lucia';
+var stl = EEZ.filter(ee.Filter.eq('Dissolve', 'SAINT LUCIA'));
+var stl_obj = countries.filter(ee.Filter.eq('country_na', stl_name));
+var svg_name = 'Saint Vincent and the Grenadines';
+var svg = EEZ.filter(ee.Filter.eq('Dissolve', 'SAINT VINCENT AND THE GRENADINES'));
+var svg_obj = countries.filter(ee.Filter.eq('country_co', 'VC'));
+var barb_name = 'Barbados';
+var barb = EEZ.filter(ee.Filter.eq('Dissolve', 'BARBADOS'));
+var barb_obj = countries.filter(ee.Filter.eq('country_na', barb_name));
+var grd_name = 'Grenada';
+var grd = EEZ.filter(ee.Filter.eq('Dissolve', 'GRENADA'));
+var grd_obj = countries.filter(ee.Filter.eq('country_na', grd_name));
+
+//Add TNC logo
+var logo = ee.Image('users/vrp2116/TNClogoPrimary_OU_RGB_Carib');
+var title = ui.Label('Caribbean Benthic Habitat Maps', {fontWeight: 'bold', fontSize: '20px', color: 'green'});
+var descr = ui.Label("These maps represent the first-ever 4m visualization of shallow benthic habitats across the Caribbean Basin and were produced from a mosaic of Planetscope Dove Classic satellite scenes acquired between 2017-2019. The mapping method used an object-oriented classification based on a rule-based algorithm that integrated the reflectance, depth, and geomorphic zone information. Scroll down to learn more.", {color: 'black'});
+var link = ui.Label(
+    'If you are a local expert, click here to provide feedback on these maps.', {},
+    'https://youtu.be/BCmdCpS-RxM');
+var branding = ui.Thumbnail({image:logo,params:{bands:['b1','b2','b3'],min:0,max:255}, style:{width:'150px',height:'54px'}});
+
+panel.add(title);
+panel.add(branding);
+panel.add(descr);
+
+//Download label
+var disp3 = ui.Label('Download the GIS layers', {}, 'https://arcg.is/100GS5');
+disp3.style().set({fontWeight: 'bold', fontSize: '16px'});
+panel.add(disp3);
+panel.add(link);
+
+
+//Create label for drop-down menu////////////////////////////////////////////////////////////////
+var disp = ui.Label('Select country/island of interest:');
+disp.style().set('fontWeight','bold');
+panel.add(disp);
+
+//Create drop-down menu/////////////////////////////////////////////////////////////////////////
+var select = ui.Select({
+  items: [carib_name, ang_name, atgbrb_name, bhs_name, barb_name, bvi_name, cay_name, cuba_name, dom_name, dr_name, grd_name, guad_name, hti_name, jam_name, mart_name, montse_name, pr_name, skn_name, stl_name, svg_name, tci_name, usvi_name],
+  value: carib_name,
+  onChange: redraw,
+});
+panel.add(select);
+
+// Pick map layer://////////////////////////////////////////////////////////////////////////////
+var disp2 = ui.Label('Select habitat layer:');
+disp2.style().set('fontWeight','bold');
+panel.add(disp2);
+var BENHAB = 'All Benthic Habitats';
+var CORAL = 'Coral Only';
+var SEAGRASS = 'Seagrass Only';
+var BATHY = 'Bathymetry';
+var select2 = ui.Select({
+  items: [BENHAB,CORAL,SEAGRASS],
+  value: BENHAB,
+  onChange: redraw2,
+});
+panel.add(select2);
+
+/////Adjust transparency/////////////////////////////////////////////////////////////////////
+var tlabel = ui.Label('Adjust layer transparency to see the underlying imagery:');
+tlabel.style().set('fontWeight','bold');
+panel.add(tlabel);
+var slider = ui.Slider();
+slider.setValue(0.9);  // Set a default value.
+slider.onChange(function(value) {
+  map.layers().get(0).setOpacity(value);
+});
+panel.add(slider);
+
+
+
+/////////////Redraw functions////////////////////////////////////////////////////////////
+function redraw2() {
+  map.layers().reset();
+  var country = select.getValue();
+  var layer = select2.getValue();
+  var image;
+  if (layer == BENHAB) {
+    image = bhVis;
+  }
+  if (layer == CORAL) {
+    image = coralVis.updateMask(benhab.gte(1)).updateMask(benhab.lte(5));
+  }
+  if (layer == SEAGRASS) {
+    image = seagrassVis.updateMask(benhab.gte(12)).updateMask(benhab.lte(13));
+  }
+  map.addLayer(image, {}, layer);
+}
+
+// var subpanel = ui.Panel();
+// panel.add(subpanel);
+
+// panel.add(ui.Label(
+//   'Data Request Form', {},
+//   'https://arcg.is/100GS5'));
+
+/////////////////////////LEGENDS/////////////////////////////////////////////////////////////////
+// Create the panel for the legend items.
+var legend = ui.Panel({
+  style: {
+    position: 'bottom-right',
+    padding: '8px 15px'
+  }
+});
+ui.root.add(legend);
+
+// Create and add the legend title.
+var legendTitle = ui.Label({
+  value: 'Legend',
+  style: {
+    fontWeight: 'bold',
+    fontSize: '18px',
+    margin: '0 0 4px 0',
+    padding: '0'
+  }
+});
+legend.add(legendTitle);
+
+///////////Legend - Add Classes Doc///////////////////////////////////
+
+legend.add(ui.Label(
+  'Click to learn more about the benthic habitat classes', {},
+  'https://tnc.box.com/shared/static/vmhzp7tfbf5ipgebdvtwot3214n9iopw.pdf'));
+
+/////////////Benthic Habitat Legend/////////////////////////////////
+var bhLabel = ui.Label({
+  value: 'Benthic Habitat Classes',
+  style: {
+//    fontWeight: 'bold',
+    fontSize: '14px',
+    margin: '0 0 4px 0',
+    padding: '0'
+  }
+});
+//var bhlabel = ui.Label('Benthic Habitat Classes');
+legend.add(bhLabel);
+// Creates and styles 1 row of the legend.
+var makeRow = function(color, name) {
+  // Create the label that is actually the colored box.
+  var colorBox = ui.Label({
+    style: {
+      backgroundColor: '#' + color,
+      // Use padding to give the box height and width.
+      padding: '8px',
+      margin: '0 0 4px 0'
+    }
+  });
+  // Create the label filled with the description text.
+  var description = ui.Label({
+    value: name,
+    style: {margin: '0 0 4px 6px'}
+  });
+  return ui.Panel({
+    widgets: [colorBox, description],
+    layout: ui.Panel.Layout.Flow('horizontal')
+  });
+};
+var names_b = ['Reef Crest','Fore Reef','Back Reef','Coral/Algae','Spur and Groove Reef','Hardbottom Sparse Algae','Hardbottom Dense Algae','Muddy Bottom','Dredged','Sand','Boulders and Rocks','Sparse Seagrass','Dense Seagrass']
+for (var i = 0; i < names_b.length; i++) {
+    legend.add(makeRow(palette_bh[i], names_b[i]));
+  }
+
+
+
+var sublegend = ui.Panel();
+legend.add(sublegend);
+// Redraw Function//////////////////////////////////////////////////////////////////////////////////
+function redraw() {
+  map.layers().reset();
+  var country = select.getValue();
+  //subpanel.clear();
+  sublegend.clear();
+  var image;
+  if (select2.getValue() == BENHAB) {
+    image = bhVis;
+  } else if (select2.getValue() == CORAL) {
+    image = coralVis.updateMask(benhab.gte(1)).updateMask(benhab.lte(5));
+  } else if (select2.getValue() == SEAGRASS) {
+    image = seagrassVis.updateMask(benhab.gte(12)).updateMask(benhab.lte(13));
+  }
+  if (country == carib_name) {
+    var geom = carib;
+    image = image;
+    map.setCenter(-71.324, 18.837, 5)
+    var AreaSqKmRC = 66.33; var AreaSqKmRF = 291.20; var AreaSqKmRB = 259.33;
+    var AreaSqKmCA = 9837.87; var AreaSqKmSG = 668.26; var AreaSqKmHSA = 15675.35; var AreaSqKmHDA = 13515.23;
+    var AreaSqKmMB = 904.60; var AreaSqKmDR = 42.67; var AreaSqKmSA = 73417.58; var AreaSqKmBR = 12.00;
+    var AreaSqKmSS = 65983.83; var AreaSqKmSD = 25597.77;
+    createPieChart(AreaSqKmRC, AreaSqKmRF, AreaSqKmRB, AreaSqKmCA, AreaSqKmSG, AreaSqKmHSA, 
+      AreaSqKmHDA, AreaSqKmMB, AreaSqKmDR, AreaSqKmSA, AreaSqKmBR, AreaSqKmSS, AreaSqKmSD);
+  } else if (country == bhs_name) {
+    var geom = bhs;
+    image = image.clip(bhs);
+    map.centerObject(bhs_obj,7);
+    var AreaSqKmRC = 23.70; var AreaSqKmRF = 102.29; var AreaSqKmRB = 91.79;
+    var AreaSqKmCA = 5334.68; var AreaSqKmSG = 268.25; var AreaSqKmHSA = 6617.99; var AreaSqKmHDA = 5725.00;
+    var AreaSqKmMB = 514.01; var AreaSqKmDR = 19.27; var AreaSqKmSA = 44824.46; var AreaSqKmBR = 0;
+    var AreaSqKmSS = 42030.17; var AreaSqKmSD = 14900.20;
+    createPieChart(AreaSqKmRC, AreaSqKmRF, AreaSqKmRB, AreaSqKmCA, AreaSqKmSG, AreaSqKmHSA, 
+      AreaSqKmHDA, AreaSqKmMB, AreaSqKmDR, AreaSqKmSA, AreaSqKmBR, AreaSqKmSS, AreaSqKmSD);
+  } else if (country == tci_name) {
+    var geom = tci;
+    image = image.clip(tci);
+    var obj = tci_obj;
+    map.centerObject(tci_obj,9);
+    var AreaSqKmRC = 5.24; var AreaSqKmRF = 23.47; var AreaSqKmRB = 19.55;
+    var AreaSqKmCA = 429.90; var AreaSqKmSG = 46.07; var AreaSqKmHSA = 360.27; var AreaSqKmHDA = 323.14;
+    var AreaSqKmMB = 23.06; var AreaSqKmDR = 0.71; var AreaSqKmSA = 2768.02; var AreaSqKmBR = 0;
+    var AreaSqKmSS = 1574.46; var AreaSqKmSD = 780.85;
+    createPieChart(AreaSqKmRC, AreaSqKmRF, AreaSqKmRB, AreaSqKmCA, AreaSqKmSG, AreaSqKmHSA, 
+      AreaSqKmHDA, AreaSqKmMB, AreaSqKmDR, AreaSqKmSA, AreaSqKmBR, AreaSqKmSS, AreaSqKmSD);
+  } else if (country == cuba_name) {
+    var geom = cuba;
+    image = image.clip(cuba);
+    var obj = cuba_obj;
+    map.centerObject(cuba_obj,7);
+    var AreaSqKmRC = 13.55; var AreaSqKmRF = 71.72; var AreaSqKmRB = 59.30;
+    var AreaSqKmCA = 2395.86; var AreaSqKmSG = 192.37; var AreaSqKmHSA = 1944.19; var AreaSqKmHDA = 1328.04;
+    var AreaSqKmMB = 193.99; var AreaSqKmDR = 6.88; var AreaSqKmSA = 19193.17; var AreaSqKmBR = 0;
+    var AreaSqKmSS = 20394.09; var AreaSqKmSD = 8868.22;
+    createPieChart(AreaSqKmRC, AreaSqKmRF, AreaSqKmRB, AreaSqKmCA, AreaSqKmSG, AreaSqKmHSA, 
+      AreaSqKmHDA, AreaSqKmMB, AreaSqKmDR, AreaSqKmSA, AreaSqKmBR, AreaSqKmSS, AreaSqKmSD);
+  } else if (country == cay_name) {
+    var geom = cayman;
+    image = image.clip(cayman);
+    var obj = cay_obj;
+    map.centerObject(cay_obj,9);
+    var AreaSqKmRC = 1.38; var AreaSqKmRF = 6.77; var AreaSqKmRB = 5.05;
+    var AreaSqKmCA = 22.84; var AreaSqKmSG = 27.93; var AreaSqKmHSA = 27.56; var AreaSqKmHDA = 4.89;
+    var AreaSqKmMB = 0.89; var AreaSqKmDR = 4.57; var AreaSqKmSA = 29.80; var AreaSqKmBR = 0;
+    var AreaSqKmSS = 64.04; var AreaSqKmSD = 21.38;
+    createPieChart(AreaSqKmRC, AreaSqKmRF, AreaSqKmRB, AreaSqKmCA, AreaSqKmSG, AreaSqKmHSA, 
+      AreaSqKmHDA, AreaSqKmMB, AreaSqKmDR, AreaSqKmSA, AreaSqKmBR, AreaSqKmSS, AreaSqKmSD);
+  } else if (country == jam_name) {
+    var geom = jam;
+    image = image.clip(jam);
+    var obj = jam_obj;
+    map.setCenter(-77.4449, 17.6892, 9)
+    //map.centerObject(jam_obj,9);
+    var AreaSqKmRC = 3.02; var AreaSqKmRF = 13.63; var AreaSqKmRB = 10.84;
+    var AreaSqKmCA = 296.70; var AreaSqKmSG = 56.51; var AreaSqKmHSA = 2151.20; var AreaSqKmHDA = 2030.65;
+    var AreaSqKmMB = 14.25; var AreaSqKmDR = 0.74; var AreaSqKmSA = 1648.99; var AreaSqKmBR = 0;
+    var AreaSqKmSS = 334.05; var AreaSqKmSD = 96.29;
+    createPieChart(AreaSqKmRC, AreaSqKmRF, AreaSqKmRB, AreaSqKmCA, AreaSqKmSG, AreaSqKmHSA, 
+      AreaSqKmHDA, AreaSqKmMB, AreaSqKmDR, AreaSqKmSA, AreaSqKmBR, AreaSqKmSS, AreaSqKmSD);
+  } else if (country == hti_name) {
+    var geom = hti;
+    image = image.clip(hti);
+    var obj = hti_obj;
+    map.centerObject(hti_obj,8);
+    var AreaSqKmRC = 5.19; var AreaSqKmRF = 15.43; var AreaSqKmRB = 18.11;
+    var AreaSqKmCA = 247.52; var AreaSqKmSG = 28.42; var AreaSqKmHSA = 904.15; var AreaSqKmHDA = 676.63;
+    var AreaSqKmMB = 3.36; var AreaSqKmDR = 0; var AreaSqKmSA = 747.80; var AreaSqKmBR = 0;
+    var AreaSqKmSS = 589.13; var AreaSqKmSD = 231.51;
+    createPieChart(AreaSqKmRC, AreaSqKmRF, AreaSqKmRB, AreaSqKmCA, AreaSqKmSG, AreaSqKmHSA, 
+      AreaSqKmHDA, AreaSqKmMB, AreaSqKmDR, AreaSqKmSA, AreaSqKmBR, AreaSqKmSS, AreaSqKmSD);
+  } else if (country == dr_name) {
+    var geom = dr;
+    image = image.clip(dr);
+    var obj = dr_obj;
+    map.centerObject(dr_obj,8);
+    var AreaSqKmRC = 4.82; var AreaSqKmRF = 19.93; var AreaSqKmRB = 17.58;
+    var AreaSqKmCA = 308.71; var AreaSqKmSG = 10.44; var AreaSqKmHSA = 1146.50; var AreaSqKmHDA = 919.68;
+    var AreaSqKmMB = 112.74; var AreaSqKmDR = 1.80; var AreaSqKmSA = 867.08; var AreaSqKmBR = 0;
+    var AreaSqKmSS = 494.41; var AreaSqKmSD = 128.30;
+    createPieChart(AreaSqKmRC, AreaSqKmRF, AreaSqKmRB, AreaSqKmCA, AreaSqKmSG, AreaSqKmHSA, 
+      AreaSqKmHDA, AreaSqKmMB, AreaSqKmDR, AreaSqKmSA, AreaSqKmBR, AreaSqKmSS, AreaSqKmSD);
+  } else if (country == pr_name) {
+    var geom = pr;
+    image = image.clip(pr);
+    var obj = pr_obj;
+    map.centerObject(pr_obj,9);
+    var AreaSqKmRC = 1.70; var AreaSqKmRF = 5.92; var AreaSqKmRB = 5.49;
+    var AreaSqKmCA = 224.51; var AreaSqKmSG = 7.33; var AreaSqKmHSA = 449.38; var AreaSqKmHDA = 670.82;
+    var AreaSqKmMB = 16.14; var AreaSqKmDR = 2.89; var AreaSqKmSA = 858.23; var AreaSqKmBR = 0;
+    var AreaSqKmSS = 141.67; var AreaSqKmSD = 246.39;
+    createPieChart(AreaSqKmRC, AreaSqKmRF, AreaSqKmRB, AreaSqKmCA, AreaSqKmSG, AreaSqKmHSA, 
+      AreaSqKmHDA, AreaSqKmMB, AreaSqKmDR, AreaSqKmSA, AreaSqKmBR, AreaSqKmSS, AreaSqKmSD);
+  } else if (country == usvi_name) {
+    var geom = usvi;
+    image = image.clip(usvi);
+    var obj = usvi_obj;
+    map.centerObject(usvi_obj,10);
+    var AreaSqKmRC = 0.78; var AreaSqKmRF = 2.31; var AreaSqKmRB = 2.09;
+    var AreaSqKmCA = 61.59; var AreaSqKmSG = 3.02; var AreaSqKmHSA = 117.97; var AreaSqKmHDA = 171.02;
+    var AreaSqKmMB = 2.14; var AreaSqKmDR = 3.17; var AreaSqKmSA = 141.73; var AreaSqKmBR = 0;
+    var AreaSqKmSS = 43.89; var AreaSqKmSD = 26.20;
+    createPieChart(AreaSqKmRC, AreaSqKmRF, AreaSqKmRB, AreaSqKmCA, AreaSqKmSG, AreaSqKmHSA, 
+      AreaSqKmHDA, AreaSqKmMB, AreaSqKmDR, AreaSqKmSA, AreaSqKmBR, AreaSqKmSS, AreaSqKmSD);
+  } else if (country == bvi_name) {
+    var geom = bvi;
+    image = image.clip(bvi);
+    var obj = bvi_obj;
+    map.centerObject(bvi_obj,10);
+    var AreaSqKmRC = 0.95; var AreaSqKmRF = 2.61; var AreaSqKmRB = 2.42;
+    var AreaSqKmCA = 75.99; var AreaSqKmSG = 0.41; var AreaSqKmHSA = 500.86; var AreaSqKmHDA = 237.21;
+    var AreaSqKmMB = 0.35; var AreaSqKmDR = 0.12; var AreaSqKmSA = 683.32; var AreaSqKmBR = 0;
+    var AreaSqKmSS = 21.12; var AreaSqKmSD = 41.52;
+    createPieChart(AreaSqKmRC, AreaSqKmRF, AreaSqKmRB, AreaSqKmCA, AreaSqKmSG, AreaSqKmHSA, 
+      AreaSqKmHDA, AreaSqKmMB, AreaSqKmDR, AreaSqKmSA, AreaSqKmBR, AreaSqKmSS, AreaSqKmSD);
+  } else if (country == ang_name) {
+    var geom = ang;
+    image = image.clip(ang);
+    var obj = ang_obj;
+    map.centerObject(ang_obj,11);
+    var AreaSqKmRC = 0.28; var AreaSqKmRF = 1.44; var AreaSqKmRB = 1.31;
+    var AreaSqKmCA = 6.46; var AreaSqKmSG = 1.93; var AreaSqKmHSA = 51.84; var AreaSqKmHDA = 67.12;
+    var AreaSqKmMB = 2.31; var AreaSqKmDR = 0; var AreaSqKmSA = 59.94; var AreaSqKmBR = 0.01;
+    var AreaSqKmSS = 32.64; var AreaSqKmSD = 3.45;
+    createPieChart(AreaSqKmRC, AreaSqKmRF, AreaSqKmRB, AreaSqKmCA, AreaSqKmSG, AreaSqKmHSA, 
+      AreaSqKmHDA, AreaSqKmMB, AreaSqKmDR, AreaSqKmSA, AreaSqKmBR, AreaSqKmSS, AreaSqKmSD);
+  } else if (country == skn_name) {
+    var geom = skn;
+    image = image.clip(skn);
+    var obj = skn_obj;
+    map.centerObject(skn_obj,11);
+    var AreaSqKmRC = 0.14; var AreaSqKmRF = 1.00; var AreaSqKmRB = 1.40;
+    var AreaSqKmCA = 62.41; var AreaSqKmSG = 2.86; var AreaSqKmHSA = 104.05; var AreaSqKmHDA = 76.14;
+    var AreaSqKmMB = 2.16; var AreaSqKmDR = 0; var AreaSqKmSA = 127.43; var AreaSqKmBR = 0;
+    var AreaSqKmSS = 2.91; var AreaSqKmSD = 25.56;
+    createPieChart(AreaSqKmRC, AreaSqKmRF, AreaSqKmRB, AreaSqKmCA, AreaSqKmSG, AreaSqKmHSA, 
+      AreaSqKmHDA, AreaSqKmMB, AreaSqKmDR, AreaSqKmSA, AreaSqKmBR, AreaSqKmSS, AreaSqKmSD);
+  } else if (country == atgbrb_name) {
+    var geom = atgbrb;
+    image = image.clip(atgbrb);
+    var obj = atgbrb_obj;
+    map.centerObject(atgbrb_obj,10);
+    var AreaSqKmRC = 0.75; var AreaSqKmRF = 3.69; var AreaSqKmRB = 3.99;
+    var AreaSqKmCA = 100.46; var AreaSqKmSG = 5.05; var AreaSqKmHSA = 0.54; var AreaSqKmHDA = 0.10;
+    var AreaSqKmMB = 8.07; var AreaSqKmDR = 0.46; var AreaSqKmSA = 0.08; var AreaSqKmBR = 0.24;
+    var AreaSqKmSS = 79.51; var AreaSqKmSD = 59.41;
+    createPieChart(AreaSqKmRC, AreaSqKmRF, AreaSqKmRB, AreaSqKmCA, AreaSqKmSG, AreaSqKmHSA, 
+      AreaSqKmHDA, AreaSqKmMB, AreaSqKmDR, AreaSqKmSA, AreaSqKmBR, AreaSqKmSS, AreaSqKmSD);
+  } else if (country == montse_name) {
+    var geom = montse;
+    image = image.clip(montse);
+    var obj = montse_obj;
+    map.centerObject(montse_obj,12);
+    var AreaSqKmRC = 0; var AreaSqKmRF = 0; var AreaSqKmRB = 0;
+    var AreaSqKmCA = 0.91; var AreaSqKmSG = 0; var AreaSqKmHSA = 10.47; var AreaSqKmHDA = 8.55;
+    var AreaSqKmMB = 0; var AreaSqKmDR = 0; var AreaSqKmSA = 7.80; var AreaSqKmBR = 0.91;
+    var AreaSqKmSS = 0; var AreaSqKmSD = 0.31;
+    createPieChart(AreaSqKmRC, AreaSqKmRF, AreaSqKmRB, AreaSqKmCA, AreaSqKmSG, AreaSqKmHSA, 
+      AreaSqKmHDA, AreaSqKmMB, AreaSqKmDR, AreaSqKmSA, AreaSqKmBR, AreaSqKmSS, AreaSqKmSD);
+  } else if (country == guad_name) {
+    var geom = guad;
+    image = image.clip(guad);
+    var obj = guad_obj;
+    map.centerObject(guad_obj,11);
+    var AreaSqKmRC = 1.68; var AreaSqKmRF = 7.81; var AreaSqKmRB = 6.74;
+    var AreaSqKmCA = 82.15; var AreaSqKmSG = 16.39; var AreaSqKmHSA = 149.56; var AreaSqKmHDA = 135.21;
+    var AreaSqKmMB = 0.78; var AreaSqKmDR = 0; var AreaSqKmSA = 208.07; var AreaSqKmBR = 0.10;
+    var AreaSqKmSS = 66.95; var AreaSqKmSD = 93.59;
+    createPieChart(AreaSqKmRC, AreaSqKmRF, AreaSqKmRB, AreaSqKmCA, AreaSqKmSG, AreaSqKmHSA, 
+      AreaSqKmHDA, AreaSqKmMB, AreaSqKmDR, AreaSqKmSA, AreaSqKmBR, AreaSqKmSS, AreaSqKmSD);
+  } else if (country == dom_name) {
+    var geom = dom;
+    image = image.clip(dom);
+    var obj = dom_obj;
+    map.centerObject(dom_obj,11);
+    var AreaSqKmRC = 0.01; var AreaSqKmRF = 0.06; var AreaSqKmRB = 0.05;
+    var AreaSqKmCA = 11.42; var AreaSqKmSG = 0; var AreaSqKmHSA = 0.04; var AreaSqKmHDA = 10.52;
+    var AreaSqKmMB = 0; var AreaSqKmDR = 0; var AreaSqKmSA = 63.14; var AreaSqKmBR = 4.54;
+    var AreaSqKmSS = 0.12; var AreaSqKmSD = 10.06;
+    createPieChart(AreaSqKmRC, AreaSqKmRF, AreaSqKmRB, AreaSqKmCA, AreaSqKmSG, AreaSqKmHSA, 
+      AreaSqKmHDA, AreaSqKmMB, AreaSqKmDR, AreaSqKmSA, AreaSqKmBR, AreaSqKmSS, AreaSqKmSD);
+  } else if (country == mart_name) {
+    var geom = mart;
+    image = image.clip(mart);
+    var obj = mart_obj;
+    map.centerObject(mart_obj,11);
+    var AreaSqKmRC = 0.97; var AreaSqKmRF = 3.44; var AreaSqKmRB = 4.77;
+    var AreaSqKmCA = 43.90; var AreaSqKmSG = 0; var AreaSqKmHSA = 66.01; var AreaSqKmHDA = 74.38;
+    var AreaSqKmMB = 1.44; var AreaSqKmDR = 0; var AreaSqKmSA = 115.90; var AreaSqKmBR = 0.35;
+    var AreaSqKmSS = 63.48; var AreaSqKmSD = 8.90;
+    createPieChart(AreaSqKmRC, AreaSqKmRF, AreaSqKmRB, AreaSqKmCA, AreaSqKmSG, AreaSqKmHSA, 
+      AreaSqKmHDA, AreaSqKmMB, AreaSqKmDR, AreaSqKmSA, AreaSqKmBR, AreaSqKmSS, AreaSqKmSD);
+  } else if (country == stl_name) {
+    var geom = stl;
+    image = image.clip(stl);
+    var obj = stl_obj;
+    map.centerObject(stl_obj,11);
+    var AreaSqKmRC = 0.18; var AreaSqKmRF = 0.47; var AreaSqKmRB = 0.53;
+    var AreaSqKmCA = 8.19; var AreaSqKmSG = 0; var AreaSqKmHSA = 8.73; var AreaSqKmHDA = 68.23;
+    var AreaSqKmMB = 0; var AreaSqKmDR = 0.35; var AreaSqKmSA = 111.53; var AreaSqKmBR = 0.44;
+    var AreaSqKmSS = 0; var AreaSqKmSD = 13.71;
+    createPieChart(AreaSqKmRC, AreaSqKmRF, AreaSqKmRB, AreaSqKmCA, AreaSqKmSG, AreaSqKmHSA, 
+      AreaSqKmHDA, AreaSqKmMB, AreaSqKmDR, AreaSqKmSA, AreaSqKmBR, AreaSqKmSS, AreaSqKmSD);
+  } else if (country == svg_name) {
+    var geom = svg;
+    image = image.clip(svg);
+    var obj = svg_obj;
+    //map.centerObject(svg_obj,11);
+    map.setCenter(-61.2758, 12.8948, 10)
+    var AreaSqKmRC = 0.59; var AreaSqKmRF = 2.94; var AreaSqKmRB = 3.35;
+    var AreaSqKmCA = 29.56; var AreaSqKmSG = 0.06; var AreaSqKmHSA = 142.09; var AreaSqKmHDA = 11.58;
+    var AreaSqKmMB = 0.05; var AreaSqKmDR = 0; var AreaSqKmSA = 46.29; var AreaSqKmBR = 2.74;
+    var AreaSqKmSS = 11.91; var AreaSqKmSD = 14.83;
+    createPieChart(AreaSqKmRC, AreaSqKmRF, AreaSqKmRB, AreaSqKmCA, AreaSqKmSG, AreaSqKmHSA, 
+      AreaSqKmHDA, AreaSqKmMB, AreaSqKmDR, AreaSqKmSA, AreaSqKmBR, AreaSqKmSS, AreaSqKmSD);
+  } else if (country == barb_name) {
+    var geom = barb;
+    image = image.clip(barb);
+    var obj = barb_obj;
+    map.centerObject(barb_obj,11);
+    var AreaSqKmRC = 0.65; var AreaSqKmRF = 2.72; var AreaSqKmRB = 1.96;
+    var AreaSqKmCA = 19.45; var AreaSqKmSG = 1.12; var AreaSqKmHSA = 29.39; var AreaSqKmHDA = 16.94;
+    var AreaSqKmMB = 0.01; var AreaSqKmDR = 0.66; var AreaSqKmSA = 49.83; var AreaSqKmBR = 0;
+    var AreaSqKmSS = 0; var AreaSqKmSD = 0.26;
+    createPieChart(AreaSqKmRC, AreaSqKmRF, AreaSqKmRB, AreaSqKmCA, AreaSqKmSG, AreaSqKmHSA, 
+      AreaSqKmHDA, AreaSqKmMB, AreaSqKmDR, AreaSqKmSA, AreaSqKmBR, AreaSqKmSS, AreaSqKmSD);
+  } else if (country == grd_name) {
+    var geom = grd;
+    image = image.clip(grd);
+    var obj = grd_obj;
+    map.centerObject(grd_obj,11);
+    var AreaSqKmRC = 0.61; var AreaSqKmRF = 2.71; var AreaSqKmRB = 2.48;
+    var AreaSqKmCA = 35.43; var AreaSqKmSG = 0; var AreaSqKmHSA = 66.17; var AreaSqKmHDA = 13.60;
+    var AreaSqKmMB = 0; var AreaSqKmDR = 0; var AreaSqKmSA = 52.29; var AreaSqKmBR = 2.60;
+    var AreaSqKmSS = 16.73; var AreaSqKmSD = 17.00;
+    createPieChart(AreaSqKmRC, AreaSqKmRF, AreaSqKmRB, AreaSqKmCA, AreaSqKmSG, AreaSqKmHSA, 
+      AreaSqKmHDA, AreaSqKmMB, AreaSqKmDR, AreaSqKmSA, AreaSqKmBR, AreaSqKmSS, AreaSqKmSD);
+  }
+  map.addLayer(image, {}, country);
+}
+
+// Invoke the redraw function once at start up to initialize the map.
+redraw();
+
+// Create the inspector panel, initially hiding it.////////////////////////////////////////////////
+var inspector = ui.Panel({style: {shown: true}});
+map.add(inspector);
+var loading = ui.Label('Click a point on the map to inspect.')
+inspector.add(loading);
+
+map.onClick(function(coords) {
+  // Gather the image bands into a single Image that we can asynchronously sample.
+  inspector.clear();
+  var lon = ui.Label();
+  var lat = ui.Label();
+  lon.setValue('Longitude: ' + coords.lon.toFixed(4)),
+  lat.setValue('Latitude: ' + coords.lat.toFixed(4));
+  var point = ee.Geometry.Point(coords.lon, coords.lat);
+  //Ben Hab Value
+    //Bathymetry value
+  var habreduced = benhab.reduce(ee.Reducer.min());
+  var habValue = habreduced.reduceRegion({
+  reducer: ee.Reducer.min(),
+  geometry: point,
+  scale: 4,
+  maxPixels: 1e9
+  });
+  var habValue2 = habValue.get('min').getInfo();
+  if (habValue2 == 1) {
+    var habLabel = 'Reef Crest';
+  } else if (habValue2 == 2) {
+    var habLabel = 'Fore Reef';
+  } else if (habValue2 == 3) {
+    var habLabel = 'Back Reef';
+  } else if (habValue2 == 4) {
+    var habLabel = 'Coral/Algae';
+  } else if (habValue2 == 5) {
+    var habLabel = 'Spur and Groove Reef';
+  } else if (habValue2 == 6) {
+    var habLabel = 'Hardbottom Sparse Algae';
+  } else if (habValue2 == 7) {
+    var habLabel = 'Hardbottom Dense Algae';
+  } else if (habValue2 == 8) {
+    var habLabel = 'Muddy Bottom';
+  } else if (habValue2 == 9) {
+    var habLabel = 'Dredged';
+  } else if (habValue2 == 10) {
+    var habLabel = 'Sand';
+  } else if (habValue2 == 11) {
+    var habLabel = 'Boulders and Rocks';
+  } else if (habValue2 == 12) {
+    var habLabel = 'Sparse Seagrass';
+  } else if (habValue2 == 13) {
+    var habLabel = 'Dense Seagrass';
+  }
+  // var habAtPoint = jambenhab.filterBounds(point);
+  // var habValue = ee.String(habAtPoint.reduceColumns(ee.Reducer.first(), ['Class']).get('first'))
+  //OnClick 
+    inspector.add(lon);
+    inspector.add(lat);
+    // Display a label that corresponds to a checked checkbox.
+    inspector.add(ui.Label('Habitat Class: ' + habLabel + ' '));
+    var subpanelx = ui.Panel({layout: ui.Panel.Layout.flow('horizontal')});
+    var coralchoice = 'coral reef'; var seagrasschoice = 'seagrass'; var hbttmchoice = 'algal hardbottom';
+    subpanelx.add(ui.Label('Square kilometers of'));
+      var selecthabx = ui.Select({
+      items: [coralchoice,seagrasschoice,hbttmchoice],
+      value: coralchoice,
+      onChange: calculate});
+      subpanelx.add(selecthabx);
+      subpanelx.add(ui.Label('within'));
+        var bufferradius = ui.Textbox({
+          value: '5',
+          style: {width: '50px'},
+          onChange: calculate,
+        });  
+        subpanelx.add(bufferradius);
+        subpanelx.add(ui.Label('km of this point:'));
+    inspector.add(subpanelx);
+    var subpanely = ui.Panel();
+    subpanelx.add(subpanely);
+    calculate();
+    //////////////////////////////Calculate area in buffer////////////////
+     function calculate() {
+      subpanely.clear();
+      var habitatchoice = selecthabx.getValue();
+      var buffer_km = ee.Number(parseFloat(bufferradius.getValue()));
+      var buffer_meters = (buffer_km.multiply(1000)).getInfo();
+      var buffer = point.buffer({
+        distance: buffer_meters,
+        proj: 'EPSG:3857',
+      });
+      map.addLayer(buffer, {}, coords.lat.toFixed(2)+', '+coords.lon.toFixed(2)+'--- '+buffer_km.getInfo()+' km buffer: '+habitatchoice, false);
+      if (habitatchoice == coralchoice) {
+        var calc_hab = benhab.updateMask(benhab.gte(1)).updateMask(benhab.lte(5));
+      }
+      if (habitatchoice == seagrasschoice) {
+        calc_hab = benhab.updateMask(benhab.gte(12)).updateMask(benhab.lte(13));
+      }
+      if (habitatchoice == hbttmchoice) {
+        calc_hab = benhab.updateMask(benhab.gte(6)).updateMask(benhab.lte(7));
+      }
+      var finalarea = calc_hab.clip(buffer);
+        var imgtotbuf = finalarea.multiply(ee.Image.pixelArea());
+        var areatotbuf = imgtotbuf.reduceRegion({
+          reducer: ee.Reducer.sum(),
+          geometry: buffer,
+          scale: 4,
+          bestEffort: true,
+          maxPixels: 1e10 });
+          areatotbuf = ee.Number(areatotbuf.get('b1'));
+          var AreaSqKmTot = areatotbuf.divide(1e6).round();
+      subpanely.add(ui.Label(AreaSqKmTot.getInfo()));
+     }
+    
+    inspector.add(ui.Button('Close', function() {
+      inspector.style().set({shown: false});
+    }));
+    inspector.style().set({shown: true});
+    loading.style().set('shown', false);
+  });
+
+//////////////////////////////////////////////////////////////////////////
+///////////PIE CHARTS////////////////////////////////////////////////////
+
+function createPieChart(AreaSqKmRC, AreaSqKmRF, AreaSqKmRB, AreaSqKmCA, AreaSqKmSG, AreaSqKmHSA,
+AreaSqKmHDA, AreaSqKmMB, AreaSqKmDR, AreaSqKmSA, AreaSqKmBR, AreaSqKmSS, AreaSqKmSD) {
+    var list = [AreaSqKmRC, AreaSqKmRF, AreaSqKmRB, AreaSqKmCA, AreaSqKmSG, AreaSqKmHSA, 
+    AreaSqKmHDA, AreaSqKmMB, AreaSqKmDR, AreaSqKmSA, AreaSqKmBR, AreaSqKmSS, AreaSqKmSD];
+    var names = ['Reef Crest', 'Fore Reef', 'Back Reef', 'Coral/Algae', 'Spur and Groove Reef', 'Hardbottom Sparse Algae', 
+    'Hardbottom Dense Algae', 'Muddy Bottom', 'Dredged', 'Sand', 'Boulders and Rocks', 'Sparse Seagrass', 'Dense Seagrass'];
+    var array = ee.Array(list);
+    var benhab_piechart = ui.Chart.array.values(array,0,names).setChartType('PieChart');
+    var slices_bh = [{color:'FF0000'},{color:'FFBEBE'},{color:'FFD37F'},{color:'FFAA00'},{color:'FF73DF'},{color:'ABCD66'},{color:'66CDAB'},
+    {color:'A87000'},{color:'D7C29E'},{color:'FFFFBE'},{color:'AFF2FF'},{color:'38A800'},{color:'267300'}];
+    benhab_piechart.setOptions({title:'Benthic Habitat Area (sqkm)',slices:slices_bh,sliceVisibilityThreshold: 0, is3D: true, width: 600, height: 360, pieSliceTextStyle: {color: '000000'}, legend: {position: 'none'}});
+    sublegend.add(benhab_piechart);
+}
