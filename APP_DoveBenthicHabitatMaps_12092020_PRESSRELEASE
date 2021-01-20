@@ -12,7 +12,7 @@ map.setCenter(-69.217, 19.017, 5);
 map.style().set('cursor', 'crosshair');
 map.setOptions("SATELLITE"); 
 
-var benhab = ee.ImageCollection([bh1,bh2,bh3,bh4,bh5,bh6,bh7,bh8,bh9,bh10,bh11,bh12,bh13,bh14,bh15,bh16,bh17,bh18,cayman,tci,drbenhab,cuba1,cuba2,cuba34,cuba5,cuba6,cuba7,cuba8e,cuba8w,cuba9e,cuba9w,cuba10,cuba11,cuba12,htibenhab,jambenhab,jam_off_benhab,prvibenhab,ecbenhabn,ecbenhabs]).mosaic();
+var benhab = ee.ImageCollection([bh1,bh2,bh3,bh4,bh5,bh6,bh7,bh8,bh9,bh10,bh11,bh12,bh13,bh14,bh15,bh16,bh17,bh18,bh19,bh20,cayman,tci,drbenhab,cuba1,cuba2,cuba34,cuba5,cuba6,cuba7,cuba8e,cuba8w,cuba9e,cuba9w,cuba10,cuba11,cuba12,htibenhab,jambenhab,jam_off_benhab,prvibenhab,ecbenhabn,ecbenhabs]).mosaic();
 var palette_bh = ['FF0000','FFBEBE','FFD37F','FFAA00','FF73DF','ABCD66','66CDAB','A87000','D7C29E','FFFFBE','AFF2FF','38A800','267300'];
 // 1 'Reef Crest' (red FF0000), 2 'Reef Fore' (peach FFBEBE),
 // 3 'Reef Back' (pale orange FFD37F), 4 'Coral/Algae' (orange FFAA00),
