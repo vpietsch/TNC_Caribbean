@@ -1,0 +1,622 @@
+// Interactive exploration of BATHY and LCC.
+// Allows filtering based on constraints and a bathup info window.
+
+// Set up the overall structure of the app, with a control panel to the left
+// of a full-screen map. 
+ui.root.clear();  
+var panel = ui.Panel({style: {width: '350px'}});
+var map = ui.Map();
+ui.root.add(panel).add(map);
+map.drawingTools().setShown(true);
+map.drawingTools().setDrawModes(['polygon','line']);
+map.setCenter(-71.324, 18.837, 5)
+map.style().set('cursor', 'crosshair');
+map.setOptions("SATELLITE");
+
+// Define some constants.
+var BATHY = 'Bathymetry (m)';
+var LCC = 'Live Coral Cover (%)';
+var HABCOMP = 'Habitat Complexity (Rugosity)';
+var ALGAL = 'Algal Cover (%)';
+var GEOMORPH = 'Geomorphic Zones'
+
+// Create an empty list of filter constraints.
+var constraints = [];
+var constraints2 = [];
+
+// Load data layers
+var bath = ee.ImageCollection([SA1,SA2,SA3,SA4,SA5,SA6,SA7,SA8,SA9,STX_NE,STX_SA1,STX_SA2,STX_SA4,STX_SE,STX_W]).mosaic();
+var palette_b = ['FDFEC0','FC8861','B7377A','51127C','000004'];
+var bathVis = bath.visualize({min: 0, max: 15, palette: palette_b});
+var lc_dr_edit = lc_dr.divide(100);
+var lc_stx_edit = lc_stx.divide(100);
+var livecoral = ee.ImageCollection([lc_dr_edit, lc_stx_edit]).mosaic();
+var palette_lc = ['239D14','35E91F','EEEE13','F3AC0B','F33C0B'];
+var LCCVis = livecoral.visualize({min: 0, max: 10, palette: palette_lc});
+var habcomplex = ee.ImageCollection([hcomp_dr,hcomp_stx]).mosaic();
+var palette_hc = ['38A1D0','AACDAB','F1FB7C','F9A248','EF2820'];
+var habcompVis = habcomplex.visualize({min: 0, max: 1, palette: palette_hc});
+var alg_dr_edit = alg_dr.divide(100);
+var alg_stx_edit = alg_stx.divide(100);
+var pct_algal = ee.ImageCollection([alg_dr_edit,alg_stx_edit]).mosaic();
+var palette_algal = ['FDFEFE','CDEADF','9AD4C0','61BEA1','1CA884'];
+var algalVis = pct_algal.visualize({min: 0, max: 100, palette: palette_algal});
+//var gmorphic = ee.Image(geomorph);
+var empty = ee.Image().byte();
+var palette_gm = ['FF7F7F','0084A8','FFFF73','73DFFF','00A9E6','A87000','38A800','FFBEE8','BEE8FF','FF0000','FFEBBE','FF73DF']
+//1- backreef;2 - bank/shelf 15-20; 3 - bank/shelf 20-25; 4 - bank/shelf 3-8; 5 - bank/shelf 8-15; 6 - dredged
+//7 - forereef; 8 -
+//fringing reef; 9 - lagoon; 10- reef crest; 11- shoreline intertidal; 12-spur and groove
+var fills = empty.paint({
+  featureCollection: geomorph,
+  color: 'Zone_IDNUM',
+});
+var gmVis = fills.visualize({min: 1, max: 12, palette: palette_gm});
+
+/////////////////////////LEGENDS///////////////////////////////////////////
+// Create the panel for the legend items.
+var legend = ui.Panel({
+  style: {
+    position: 'bottom-right',
+    padding: '8px 15px'
+  }
+});
+ui.root.add(legend);
+
+// Create and add the legend title.
+var legendTitle = ui.Label({
+  value: 'Legend',
+  style: {
+    fontWeight: 'bold',
+    fontSize: '18px',
+    margin: '0 0 4px 0',
+    padding: '0'
+  }
+});
+legend.add(legendTitle);
+/////////////Bathymetry Legend/////////////////////////////////
+var bathlabel = ui.Label('Bathymetry (m)');
+legend.add(bathlabel);
+
+// Creates and styles 1 row of the legend.
+var makeRow = function(color, name) {
+  // Create the label that is actually the colored box.
+  var colorBox = ui.Label({
+    style: {
+      backgroundColor: '#' + color,
+      // Use padding to give the box height and width.
+      padding: '8px',
+      margin: '0 0 4px 0'
+    }
+  });
+  // Create the label filled with the description text.
+  var description = ui.Label({
+    value: name,
+    style: {margin: '0 0 4px 6px'}
+  });
+  return ui.Panel({
+    widgets: [colorBox, description],
+    layout: ui.Panel.Layout.Flow('horizontal')
+  });
+};
+var names_b = ['0 - 3m','3 - 6m','6 - 9m','9 - 12m','12m or greater']
+for (var i = 0; i < names_b.length; i++) {
+    legend.add(makeRow(palette_b[i], names_b[i]));
+  }
+  
+  /////////////Live Coral Cover Legend////////////////////////
+  var bathlabel = ui.Label('Live Coral Cover (%)');
+legend.add(bathlabel);
+
+// Creates and styles 1 row of the legend.
+var makeRow = function(color, name) {
+  // Create the label that is actually the colored box.
+  var colorBox = ui.Label({
+    style: {
+      backgroundColor: '#' + color,
+      // Use padding to give the box height and width.
+      padding: '8px',
+      margin: '0 0 4px 0'
+    }
+  });
+  // Create the label filled with the description text.
+  var description = ui.Label({
+    value: name,
+    style: {margin: '0 0 4px 6px'}
+  });
+  return ui.Panel({
+    widgets: [colorBox, description],
+    layout: ui.Panel.Layout.Flow('horizontal')
+  });
+};
+var names_lc = ['0 - 3%','3 - 6%','6 - 9%','9 - 12%','12% or greater']
+for (var i = 0; i < names_b.length; i++) {
+    legend.add(makeRow(palette_lc[i], names_lc[i]));
+  }
+    /////////////Habitat Complexity Legend////////////////////////
+  var bathlabel = ui.Label('Habitat Complexity (Rugosity)');
+legend.add(bathlabel);
+
+// Creates and styles 1 row of the legend.
+var makeRow = function(color, name) {
+  // Create the label that is actually the colored box.
+  var colorBox = ui.Label({
+    style: {
+      backgroundColor: '#' + color,
+      // Use padding to give the box height and width.
+      padding: '8px',
+      margin: '0 0 4px 0'
+    }
+  });
+  // Create the label filled with the description text.
+  var description = ui.Label({
+    value: name,
+    style: {margin: '0 0 4px 6px'}
+  });
+  return ui.Panel({
+    widgets: [colorBox, description],
+    layout: ui.Panel.Layout.Flow('horizontal')
+  });
+};
+var names_hc = ['Low: 0 - 0.2','0.2 - 0.4','0.4 - 0.6','0.6 - 0.8','High: 0.8 - 1']
+for (var i = 0; i < names_hc.length; i++) {
+    legend.add(makeRow(palette_hc[i], names_hc[i]));
+  }
+    /////////////Percent Algal Cover Legend////////////////////////
+  var bathlabel = ui.Label('Algal Cover (%)');
+legend.add(bathlabel);
+
+// Creates and styles 1 row of the legend.
+var makeRow = function(color, name) {
+  // Create the label that is actually the colored box.
+  var colorBox = ui.Label({
+    style: {
+      backgroundColor: '#' + color,
+      // Use padding to give the box height and width.
+      padding: '8px',
+      margin: '0 0 4px 0'
+    }
+  });
+  // Create the label filled with the description text.
+  var description = ui.Label({
+    value: name,
+    style: {margin: '0 0 4px 6px'}
+  });
+  return ui.Panel({
+    widgets: [colorBox, description],
+    layout: ui.Panel.Layout.Flow('horizontal')
+  });
+};
+var names_algal = ['0 - 20%','20 - 40%','40 - 60%','60 - 80%','80 - 100%']
+for (var i = 0; i < names_algal.length; i++) {
+    legend.add(makeRow(palette_algal[i], names_algal[i]));
+  }
+      /////////////Geomorphic Zones Legend////////////////////////
+  var bathlabel = ui.Label('Geomorphic Zones');
+legend.add(bathlabel);
+
+// Creates and styles 1 row of the legend.
+var makeRow = function(color, name) {
+  // Create the label that is actually the colored box.
+  var colorBox = ui.Label({
+    style: {
+      backgroundColor: '#' + color,
+      // Use padding to give the box height and width.
+      padding: '8px',
+      margin: '0 0 4px 0'
+    }
+  });
+  // Create the label filled with the description text.
+  var description = ui.Label({
+    value: name,
+    style: {margin: '0 0 4px 6px'}
+  });
+  return ui.Panel({
+    widgets: [colorBox, description],
+    layout: ui.Panel.Layout.Flow('horizontal')
+  });
+};
+
+var names_gm = ['Backreef','Bank/Shelf 15-20','Bank/Shelf 20-25','Bank/Shelf 3-8','Bank/Shelf 8-15', 'Dredged','Forereef','Fringing Reef','Lagoon','Reef Crest','Shoreline Intertidal','Spur and Groove']
+for (var i = 0; i < names_gm.length; i++) {
+    legend.add(makeRow(palette_gm[i], names_gm[i]));
+  }
+////////////////////////////////////////////////////////////////////
+
+//Add TNC logo
+var logo = ee.Image('users/vrp2116/TNClogoPrimary_OU_RGB_Carib');
+var title = ui.Label('GAO-derived habitat datasets', {fontWeight: 'bold', fontSize: '20px', color: 'green'});
+var descr = ui.Label("This tool provides access to map products derived from hyperspectral aerial imagery that, when combined, can be used to identify optimal locations for outplanting coral. Use the filters below to identify an area of interest.", {color: 'black'});
+var nlink = ui.Label(
+    'To learn more, visit nature.org/CoralMapping.', {},
+    'http://nature.org/CoralMapping');
+    
+var email = ui.Label(
+    'Questions? Contact us', {},
+    'mailto:caribgis@tnc.org');
+
+var branding = ui.Thumbnail({image:logo,params:{bands:['b1','b2','b3'],min:0,max:255},style:{width:'150px',height:'54px'}});
+
+
+panel.add(title);
+panel.add(branding);
+panel.add(descr);
+//panel.add(nlink);
+//panel.add(email);
+
+
+//Download label
+var disp3 = ui.Label('Download these maps', {}, 'https://arcg.is/100GS5');
+//disp3.style().set('fontWeight','bold');
+disp3.style().set({fontWeight: 'bold', fontSize: '16px'});
+panel.add(disp3); 
+
+//Select Country
+var SE_DominicanRepublic = "Southeast Dominican Republic";
+var SaintCroix = "Saint Croix, U.S. Virgin Islands";
+var selectC = ui.Select({
+  items: [SaintCroix, SE_DominicanRepublic],
+  value: SaintCroix,
+  onChange: redraw,
+});
+
+var clabel = ui.Label('Select Country of Interest:');
+clabel.style().set('fontWeight','bold');
+panel.add(clabel).add(selectC);
+
+// Create a layer selector that dictates which layer is visible on the map.
+var select = ui.Select({
+  items: [BATHY, LCC, HABCOMP, ALGAL, GEOMORPH],
+  value: BATHY,
+  onChange: redraw,
+});
+
+var disp = ui.Label('Display Value:');
+disp.style().set('fontWeight','bold');
+panel.add(disp).add(select);
+
+// Check-boxes to control which layers are shown in the inspector.
+//var click = ui.Label('Click a point on the map to inspect.');
+//click.style().set('fontWeight','bold');
+//panel.add(click);
+var info = ui.Label('Info box fields:')
+info.style().set('fontWeight','bold');
+panel.add(info);
+panel.add(ui.Label('Click a point on the map to display these values. The box will take a few moments to load.'));
+var bathCheck = ui.Checkbox(BATHY).setValue(false);
+panel.add(bathCheck);
+var LCCCheck = ui.Checkbox(LCC).setValue(true);
+panel.add(LCCCheck);
+var HABCOMPCheck = ui.Checkbox(HABCOMP).setValue(false);
+panel.add(HABCOMPCheck);
+var algalCheck = ui.Checkbox(ALGAL).setValue(false);
+panel.add(algalCheck);
+var gmCheck = ui.Checkbox(GEOMORPH).setValue(false);
+panel.add(gmCheck);
+
+////Calculate area or length///
+var areabox = ui.Panel({style: {shown: false}});
+areabox.style().set('position', 'bottom-center');
+map.add(areabox);
+ map.drawingTools().onDraw(function (geometry) {
+  areabox.clear();
+  var areatext = ui.Label();
+  if ((geometry.type()).getInfo() == 'Polygon') {
+    var area = (geometry.area().divide(1000 * 1000)).getInfo();
+    var arearound = ee.Number(area).format('%.2f');
+    areatext.setValue('Polygon area: ' + arearound.getInfo() + ' sqkm')
+  } else {//if (geometry.type() == 'LineString') {
+    var length = (geometry.length().divide(1000)).getInfo();
+    var lengthround = ee.Number(length).format('%.2f');
+    areatext.setValue('Length: ' + lengthround.getInfo() + ' km')}
+  areabox.add(areatext);
+  areabox.style().set({shown: true});
+})
+
+// Create the inspector panel, initially hiding it.
+var inspector = ui.Panel({style: {shown: true}});
+map.add(inspector);
+ var loading = ui.Label('Click a point on the map to inspect.')
+ inspector.add(loading);
+
+map.onClick(function(coords) {
+  // Gather the image bands into a single Image that we can asynchronously sample.
+  inspector.clear();
+  var lon = ui.Label();
+  var lat = ui.Label();
+  lon.setValue('Longitude: ' + coords.lon.toFixed(4)),
+  lat.setValue('Latitude: ' + coords.lat.toFixed(4));
+  var point = ee.Geometry.Point(coords.lon, coords.lat);
+  //Bathymetry value
+  var bathyreduced = bath.reduce(ee.Reducer.mean());
+  var depthValue = bathyreduced.reduceRegion({
+  reducer: ee.Reducer.mean(),
+  geometry: point,
+  scale: 30,
+  maxPixels: 1e9
+  });
+  var depthValue2 = depthValue.get('mean').getInfo();
+  var depthValueRound = ee.Number(depthValue2).format('%.2f'); 
+  //Live Coral Cover Value
+  var LCCreduced = livecoral.reduce(ee.Reducer.mean());
+  var LCCvalue = LCCreduced.reduceRegion({
+  reducer: ee.Reducer.mean(),
+  geometry: point,
+  scale: 30,
+  maxPixels: 1e9
+  });
+  var LCCvalue2 = LCCvalue.get('mean').getInfo()
+  var LCCvalueRound = ee.Number(LCCvalue2).format('%.2f')
+  //Habitat Complexity Value
+  var HCreduced = habcomplex.reduce(ee.Reducer.mean());
+  var HCvalue = HCreduced.reduceRegion({
+  reducer: ee.Reducer.mean(),
+  geometry: point,
+  scale: 30,
+  maxPixels: 1e9
+  }); 
+  var HCvalue2 = HCvalue.get('mean').getInfo()
+  var HCvalueRound = ee.Number(HCvalue2).format('%.2f')
+   //Pct Algal Value
+  var algReduced = pct_algal.reduce(ee.Reducer.mean());
+  var algvalue = algReduced.reduceRegion({
+  reducer: ee.Reducer.mean(),
+  geometry: point,
+  scale: 30,
+  maxPixels: 1e9
+  });
+  var algvalue2 = algvalue.get('mean').getInfo()
+  var algvalueRound = ee.Number(algvalue2).format('%.2f')
+   //Geomorphic Zone Value
+  var gmAtPoint = geomorph.filterBounds(point);
+  var gmValue = ee.String(gmAtPoint.reduceColumns(ee.Reducer.first(), ['ZONE']).get('first'))
+
+//  var gmValue = geomorphic.get('Zone_IDNUM').getInfo()
+
+  //OnClick
+    inspector.add(lon);
+    inspector.add(lat);
+    // Display a label that corresponds to a checked checkbox.
+    if (bathCheck.getValue()) {
+      inspector.add(ui.Label('Depth: ' + depthValueRound.getInfo() + ' m'));
+    }
+    if (LCCCheck.getValue()) {
+      inspector.add(ui.Label('Live Coral: ' + LCCvalueRound.getInfo() + ' %'));
+    }
+    if (HABCOMPCheck.getValue()) {
+      inspector.add(ui.Label('Habitat Complexity Value: ' + HCvalueRound.getInfo() + ' '));
+    }
+    if (algalCheck.getValue()) {
+      inspector.add(ui.Label('Algal Cover: ' + algvalueRound.getInfo() + ' %'));
+    }
+    if (gmCheck.getValue()) {
+      inspector.add(ui.Label('Geomorphic Zone: ' + gmValue.getInfo() + ' '));
+    }
+    inspector.add(ui.Button('Close', function() {
+      inspector.style().set({shown: false});
+    }));
+    inspector.style().set({shown: true});
+    loading.style().set('shown', false);
+  });
+
+
+// Add a label and select to enable adding a new filter.
+var subpanel = ui.Panel({layout: ui.Panel.Layout.flow('vertical')});
+var filter = ui.Label('Filter Map by Value Ranges:');
+filter.style().set('fontWeight','bold');
+subpanel.add(filter);
+subpanel.add(ui.Label('Widen ranges or refresh page to remove filters.'));
+var bathCheck2 = ui.Checkbox(BATHY).setValue(false);
+subpanel.add(bathCheck2);
+bathCheck2.onChange(function(checked) {
+ selectConstraint(BATHY);
+ bathCheck2.setDisabled(true);
+});
+
+// subpanel.add(ui.Label('Min Value (m):'));
+// subpanel.add(ui.Label('Max Value (m):'));
+// var BfilterMin = ui.Textbox({
+//     value: 3,
+//     style: {width: '100px'},
+//     onChange: redraw,
+//   });
+// subpanel.add(BfilterMin);
+// var BfilterMax = ui.Textbox({
+//     value: 20,
+//     style: {width: '100px'},
+//     onChange: redraw,
+//   });
+// subpanel.add(BfilterMax);
+var LCCCheck2 = ui.Checkbox(LCC).setValue(false);
+subpanel.add(LCCCheck2);
+LCCCheck2.onChange(function(checked) {
+ selectConstraint(LCC);
+ LCCCheck2.setDisabled(true);
+});
+// subpanel.add(ui.Label('Min Value (%):'));
+// subpanel.add(ui.Label('Max Value (%):'));
+// var LCfilterMin = ui.Textbox({
+//     value: 5,
+//     style: {width: '100px'},
+//     onChange: redraw,
+//   });
+// subpanel.add(BfilterMin);
+// var LCfilterMax = ui.Textbox({
+//     value: 100,
+//     style: {width: '100px'},
+//     onChange: redraw,
+//   });
+var HABCOMPCheck2 = ui.Checkbox(HABCOMP).setValue(false);
+subpanel.add(HABCOMPCheck2);
+HABCOMPCheck2.onChange(function(checked) {
+ selectConstraint(HABCOMP);
+ HABCOMPCheck2.setDisabled(true);
+});
+// subpanel.add(ui.Label('Min Value (0-1):'));
+// subpanel.add(ui.Label('Max Value (0-1):'));
+// var HCfilterMin = ui.Textbox({
+//     value: 0.3,
+//     style: {width: '100px'},
+//     onChange: redraw,
+//   });
+// subpanel.add(BfilterMin);
+// var HCfilterMax = ui.Textbox({
+//     value: 0.8,
+//     style: {width: '100px'},
+//     onChange: redraw,
+//   });
+var algalCheck2 = ui.Checkbox(ALGAL).setValue(false);
+subpanel.add(algalCheck2);
+algalCheck2.onChange(function(checked) {
+ selectConstraint(ALGAL);
+ algalCheck2.setDisabled(true);
+});
+// subpanel.add(ui.Label('Min Value (%):'));
+// subpanel.add(ui.Label('Max Value (%):'));
+// var ALGfilterMin = ui.Textbox({
+//     value: 10,
+//     style: {width: '100px'},
+//     onChange: redraw,
+//   });
+// subpanel.add(BfilterMin);
+// var ALGfilterMax = ui.Textbox({
+//     value: 60,
+//     style: {width: '100px'},
+//     onChange: redraw,
+//   });
+var gmCheck2 = ui.Checkbox(GEOMORPH).setValue(false);
+subpanel.add(gmCheck2);
+// var input_gm = ui.Select({ 
+//   items: ['Backreef','Bank/Shelf 15-20','Bank/Shelf 20-25','Bank/Shelf 3-8','Bank/Shelf 8-15', 'Dredged','Forereef','Fringing Reef','Lagoon','Reef Crest','Shoreline Intertidal','Spur and Groove'],
+//   placeholder: '[Choose a Geomorphic Zone...]',
+//   onChange: addConstraint2,
+// });
+gmCheck2.onChange(function(checked) {
+  addConstraint2(GEOMORPH);
+  gmCheck2.setDisabled(true);
+// subpanel.add(input_gm);
+});
+panel.add(subpanel);
+
+// constraints.push({
+//     image: image,
+//     val_BfiltMin: BfilterMin,
+//     val_BfiltMax: BfilterMax,
+//     val_LCfiltMin: LCfilterMin,
+//     val_LCfiltMin: LCfilterMax,
+//     val_HCfiltMin: HCfilterMin,
+//     val_HCfiltMin: HCfilterMax,
+//     val_ALGfiltMin: ALGfilterMin,
+//     val_ALGfiltMin: ALGfilterMax,
+//   });
+// constraints2.push({
+//   val_GZone: GZfilterVal
+//   });
+
+// Create a function that configures a new constraint.
+function addConstraint(name, image, defaultValue_min, defaultValue_max) {
+  panel.add(ui.Label({value:'Filter by ' + name + ':', style: {fontWeight: 'bold'}}));
+  var subpanel2 = ui.Panel({layout: ui.Panel.Layout.flow('horizontal')});
+  // Create a greater-than / less-than selector.
+  subpanel2.add(ui.Label('Min:'));
+   var input_min = ui.Textbox({
+    value: defaultValue_min,
+    style: {width: '100px'},
+    onChange: redraw,
+  });
+  subpanel2.add(input_min);
+//  panel.add(subpanel);
+  subpanel2.add(ui.Label('Max:'));
+   var input_max = ui.Textbox({
+    value: defaultValue_max,
+    style: {width: '100px'},
+    onChange: redraw,
+  });
+  subpanel2.add(input_max);
+  panel.add(subpanel2);
+
+  // Add this constraint to the global list so we can access the
+  // constraints from the redraw() function in the future.
+  constraints.push({
+    image: image,
+//    mode: mode,
+    value_min: input_min,
+    value_max: input_max,
+  });
+  redraw();
+}
+
+//Create a function that configures a new constraint for SHAPEFILE.///////
+function addConstraint2(name, image, defaultValue_gm) {
+  panel.add(ui.Label({value:'Filter by ' + name + ':', style: {fontWeight: 'bold'}}));
+  var subpanel2 = ui.Panel({layout: ui.Panel.Layout.flow('horizontal')});
+  var input_gm = ui.Select({ 
+  items: ['Backreef','Bank/Shelf 15-20','Bank/Shelf 20-25','Bank/Shelf 3-8','Bank/Shelf 8-15', 'Dredged','Forereef','Fringing Reef','Lagoon','Reef Crest','Shoreline Intertidal','Spur and Groove'],
+  //placeholder: '[Choose a Geomorphic Zone...]',
+  value: 'Fringing Reef',
+  onChange: redraw,
+    });
+  subpanel2.add(input_gm);
+  panel.add(subpanel2);
+  constraints2.push({
+    image: image,
+//    mode: mode,
+    value_gm: input_gm,
+  });
+  redraw();
+ }
+
+// Create a function that adds a constraint of the requested type.
+function selectConstraint(name) {
+  if (name == BATHY) {
+    addConstraint(name, bath, 3, 20);
+  } else if (name == LCC) {
+    addConstraint(name, livecoral, 5, 100);
+  } else if (name == HABCOMP) {
+    addConstraint(name, habcomplex, 0.3, 0.8);
+  } else if (name == ALGAL) {
+    addConstraint(name, pct_algal, 10, 60);
+  } 
+  //constraint.setValue(null);
+}
+
+// Create a function to render a map layer configured by the user inputs.
+function redraw() {
+  map.layers().reset();
+  var layer = select.getValue();
+  var country = selectC.getValue();
+  if (country == SaintCroix) {
+    map.setCenter(-64.7402, 17.7343, 12);
+  } else if (country == SE_DominicanRepublic) {
+    map.setCenter(-68.6771, 18.4213,10);
+  }
+  var image;
+  if (layer == LCC) {
+    image = LCCVis;
+  } else if (layer == HABCOMP) {
+    image = habcompVis;
+  } else if (layer == BATHY) {
+    image = bathVis;
+  } else if (layer == ALGAL) {
+    image = algalVis;
+  } else if (layer == GEOMORPH) {
+    image = gmVis;
+  }
+  for (var i = 0; i < constraints.length; ++i) {
+    var constraint = constraints[i];
+    var min_value = parseFloat(constraint.value_min.getValue());
+    var max_value = parseFloat(constraint.value_max.getValue());
+    image = image.updateMask(constraint.image.gte(min_value)).updateMask(constraint.image.lte(max_value));
+  }
+  for (var n = 0; n < constraints2.length; ++n) {
+    var constraint2 = constraints2[n];
+    var gm_value = constraint2.value_gm.getValue();
+    var filtered_gm = geomorph.filter(ee.Filter.eq('ZONE',gm_value));
+    image = image.clip(filtered_gm);
+  }
+  map.addLayer(image, {}, layer);
+}
+
+
+// Invoke the redraw function once at start up to initialize the map.
+redraw();
